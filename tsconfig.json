@@ -6,6 +6,6 @@
 "strict": true,
 "esModuleInterop": true,
 "skipLibCheck": true },
-"include": ["tests/**/*.ts"]
+"include": ["tests/**/*.ts", "qa-playwright-curso/tests/clase03.spec.ts", "qa-playwright-curso/tests/clase04.spec.ts"]
 }
 
