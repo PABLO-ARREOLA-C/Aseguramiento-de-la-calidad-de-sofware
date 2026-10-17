@@ -6,34 +6,27 @@ const BASE_URL = 'https://the-internet.herokuapp.com';
 const TEXTO_CORRECTO =
   "Sometimes you'll see a typo, other times you won't.";
 
-// Activar solamente para comprobar el afterEach.
-// La ejecución final debe realizarse con false.
-const PROBAR_REPORTE_DE_ERROR = false;
-
 test.describe('Tarea 11: Documentar defectos', () => {
   test.setTimeout(180_000);
 
-  // ============================================================
-  // HOOK: GENERAR BORRADOR DE REPORTE CUANDO EXISTAN ERRORES
-  // ============================================================
+  // ==========================================================
+  // AFTER EACH: BORRADOR AUTOMÁTICO DE REPORTE DE DEFECTOS
+  // ==========================================================
 
   test.afterEach(
     async ({ page, browserName, browser }, testInfo) => {
-      if (testInfo.errors.length === 0) {
-        return;
-      }
+      if (testInfo.errors.length === 0) return;
 
       const errores = testInfo.errors
         .map((error) => error.message ?? String(error))
         .join('\n\n');
 
-      const borrador = [
+      const reporte = [
         '# Borrador de reporte de defecto',
         '',
-        `## Título`,
-        testInfo.title,
+        `## ${testInfo.title}`,
         '',
-        '## Ambiente',
+        '### Ambiente',
         `- Fecha: ${new Date().toISOString()}`,
         `- Navegador: ${browserName}`,
         `- Versión: ${browser.version()}`,
@@ -41,45 +34,44 @@ test.describe('Tarea 11: Documentar defectos', () => {
         `- Proyecto: ${testInfo.project.name}`,
         `- URL: ${page.url()}`,
         '',
-        '## Resultado de la ejecución',
+        '### Resultado de la ejecución',
         `- Estado obtenido: ${testInfo.status}`,
         `- Estado esperado: ${testInfo.expectedStatus}`,
         '',
-        '## Resultado esperado',
-        'La aplicación debe cumplir los criterios de aceptación.',
+        '### Resultado esperado',
+        'El sistema debe cumplir los criterios de aceptación.',
         '',
-        '## Resultado obtenido',
+        '### Resultado obtenido',
         '```text',
-        errores || 'La prueba presentó un error.',
+        errores,
         '```',
         '',
-        '## Seguimiento',
-        '1. Revisar las evidencias adjuntas.',
+        '### Seguimiento',
+        '1. Revisar la evidencia adjunta.',
         '2. Confirmar los pasos para reproducir el defecto.',
-        '3. Clasificar la severidad y prioridad.',
+        '3. Clasificar severidad y prioridad.',
         '4. Registrar el defecto en GitHub Issues.',
         '',
-        '## Estado del defecto',
-        'Pendiente de revisión.',
+        '**Estado:** Pendiente de revisión.',
       ].join('\n');
 
       await testInfo.attach('borrador-reporte-defecto.md', {
-        body: Buffer.from(borrador, 'utf-8'),
+        body: Buffer.from(reporte, 'utf-8'),
         contentType: 'text/markdown',
       });
     },
   );
 
-  // ============================================================
-  // RETO 1: MEDIR UN DEFECTO INTERMITENTE
-  // ============================================================
+  // ==========================================================
+  // RETO 1: MEDIR DEFECTO INTERMITENTE EN 12 RECARGAS
+  // ==========================================================
 
   test(
     'Reto 1: Medir el defecto intermitente en 12 recargas',
     async ({ page }, testInfo) => {
-      await page.goto(`${BASE_URL}/typos`);
-
       const TOTAL_RECARGAS = 12;
+
+      await page.goto(`${BASE_URL}/typos`);
 
       const mediciones: {
         recarga: number;
@@ -87,15 +79,10 @@ test.describe('Tarea 11: Documentar defectos', () => {
         presentaError: boolean;
       }[] = [];
 
-      for (
-        let recarga = 1;
-        recarga <= TOTAL_RECARGAS;
-        recarga++
-      ) {
+      for (let recarga = 1; recarga <= TOTAL_RECARGAS; recarga++) {
         await page.reload();
 
         const parrafo = page.locator('.example p').nth(1);
-
         await expect(parrafo).toBeVisible();
 
         const texto = (await parrafo.innerText())
@@ -121,22 +108,19 @@ test.describe('Tarea 11: Documentar defectos', () => {
         (medicion) => medicion.presentaError,
       ).length;
 
-      const porcentaje = (
-        (conError / TOTAL_RECARGAS) *
-        100
-      ).toFixed(2);
+      const porcentaje = Number(
+        ((conError / TOTAL_RECARGAS) * 100).toFixed(2),
+      );
 
       const resumen =
         `Defecto observado en ${conError} de ` +
-        `${TOTAL_RECARGAS} recargas (${porcentaje}%).`;
+        `${TOTAL_RECARGAS} recargas (${porcentaje.toFixed(2)}%).`;
 
-      // Registrar frecuencia en el reporte HTML.
       testInfo.annotations.push({
         type: 'frecuencia',
         description: resumen,
       });
 
-      // Adjuntar evidencia detallada.
       await testInfo.attach('frecuencia-defecto.json', {
         body: Buffer.from(
           JSON.stringify(
@@ -146,7 +130,7 @@ test.describe('Tarea 11: Documentar defectos', () => {
               navegador: testInfo.project.name,
               totalRecargas: TOTAL_RECARGAS,
               recargasConError: conError,
-              porcentaje: Number(porcentaje),
+              porcentaje,
               mediciones,
             },
             null,
@@ -163,9 +147,9 @@ test.describe('Tarea 11: Documentar defectos', () => {
     },
   );
 
-  // ============================================================
-  // RETO 2: TEST.FIXME CON ANOTACIÓN DE ISSUE
-  // ============================================================
+  // ==========================================================
+  // RETO 2: TEST.FIXME CON ANOTACIÓN ISSUE
+  // ==========================================================
 
   test.fixme(
     'Reto 2: El texto debe aparecer sin errores',
@@ -183,16 +167,13 @@ test.describe('Tarea 11: Documentar defectos', () => {
       const parrafo = page.locator('.example p').nth(1);
 
       await expect(parrafo).toBeVisible();
-
-      // El texto debe aparecer correctamente.
-      // La prueba queda pendiente mientras exista el defecto.
       await expect(parrafo).toHaveText(TEXTO_CORRECTO);
     },
   );
 
-  // ============================================================
+  // ==========================================================
   // RETO 3: DOCUMENTAR IMÁGENES ROTAS
-  // ============================================================
+  // ==========================================================
 
   test(
     'Reto 3: Documentar imágenes rotas',
@@ -203,8 +184,6 @@ test.describe('Tarea 11: Documentar defectos', () => {
 
       await expect(imagenes.first()).toBeVisible();
 
-      // Esperar a que todas las imágenes terminen de cargar,
-      // incluso aquellas que presentan errores.
       await expect
         .poll(async () =>
           imagenes.evaluateAll((elementos) =>
@@ -216,7 +195,6 @@ test.describe('Tarea 11: Documentar defectos', () => {
         )
         .toBe(true);
 
-      // Obtener información de cada imagen.
       const resultados = await imagenes.evaluateAll(
         (elementos) =>
           elementos.map((elemento, indice) => {
@@ -242,13 +220,11 @@ test.describe('Tarea 11: Documentar defectos', () => {
         `Se detectaron ${rotas.length} imágenes rotas ` +
         `de ${resultados.length}.`;
 
-      // Anotación visible en el reporte HTML.
       testInfo.annotations.push({
         type: 'defecto',
         description: resumen,
       });
 
-      // Adjuntar diagnóstico de las imágenes.
       await testInfo.attach('diagnostico-imagenes.json', {
         body: Buffer.from(
           JSON.stringify(
@@ -267,11 +243,8 @@ test.describe('Tarea 11: Documentar defectos', () => {
         contentType: 'application/json',
       });
 
-      // Adjuntar captura de pantalla.
       await testInfo.attach('evidencia-imagenes-rotas.png', {
-        body: await page.screenshot({
-          fullPage: true,
-        }),
+        body: await page.screenshot({ fullPage: true }),
         contentType: 'image/png',
       });
 
@@ -279,15 +252,10 @@ test.describe('Tarea 11: Documentar defectos', () => {
 
       expect(resultados.length).toBeGreaterThan(0);
       expect(rotas.length).toBeGreaterThan(0);
-
-      // Validación temporal del afterEach.
-      // Cuando se activa, provoca un fallo intencional.
-      if (PROBAR_REPORTE_DE_ERROR) {
-        expect.soft(
-          rotas.length,
-          'Validación controlada del reporte Markdown',
-        ).toBe(0);
-      }
+      expect.soft(
+  rotas.length,
+  'Prueba controlada del reporte automático de defectos',
+).toBe(0);
     },
   );
 });
